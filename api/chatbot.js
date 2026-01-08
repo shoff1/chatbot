@@ -8,7 +8,7 @@ export default async function handler(req, res) {
 
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${process.env.API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${process.env.API_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -70,7 +70,11 @@ export default async function handler(req, res) {
                 }
               }
             ]
-          }]
+          }],
+          generationConfig: {
+        maxOutputTokens: 500, // Membatasi agar tidak boros kuota
+        temperature: 0.1 // Membuat AI lebih konsisten dan tidak ngelantur
+      }
         }),
       }
     );
