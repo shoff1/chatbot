@@ -13,21 +13,15 @@ export default async function handler(req, res) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          contents: [
-  {
-    role: "user",
-    parts: [
-      { 
-        text: `Asisten Keuangan: Catat transaksi atau cek laporan jika diminta. Prompt: ${prompt}` 
-      }
-    ],
-  },
-],
+          contents: [{
+            role: "user",
+            parts: [{ text: `Asisten Keuangan: Catat transaksi atau cek laporan. Prompt: ${prompt}` }]
+          }],
           tools: [{
             function_declarations: [
               {
                 name: "catat_barang_masuk",
-                description: "Input barang masuk/pembelian. Otomatis mencatat kas keluar.",
+                description: "Catat pembelian barang & kas keluar.",
                 parameters: {
                   type: "object",
                   properties: {
@@ -41,7 +35,7 @@ export default async function handler(req, res) {
               },
               {
                 name: "catat_barang_keluar",
-                description: "Input penjualan hasil ternak. Otomatis mencatat kas masuk.",
+                description: "Catat penjualan & kas masuk.",
                 parameters: {
                   type: "object",
                   properties: {
@@ -55,7 +49,7 @@ export default async function handler(req, res) {
               },
               {
                 name: "cek_laporan",
-                description: "Lihat total uang masuk atau keluar.",
+                description: "Lihat total kas masuk/keluar.",
                 parameters: {
                   type: "object",
                   properties: {
@@ -66,17 +60,27 @@ export default async function handler(req, res) {
               }
             ]
           }],
+          tool_config: {
+            function_calling_config: { mode: "AUTO" }
+          },
           generationConfig: {
-        maxOutputTokens: 500, // Membatasi agar tidak boros kuota
-        temperature: 0.1 // Membuat AI lebih konsisten dan tidak ngelantur
-      }
+            maxOutputTokens: 500,
+            temperature: 0.1
+          }
         }),
       }
     );
 
     const data = await response.json();
-// Cek di Logs Vercel: Apa yang sebenarnya dipikirkan AI?
-console.log("DEBUG: Menggunakan API Key berakhiran:", process.env.API_KEY.slice(-4));
+
+    // Log ringkas untuk monitoring
+    console.log("DEBUG: Key Last 4:", process.env.API_KEY.slice(-4));
+    
+    if (data.error) {
+      console.error("Gemini Error:", data.error.message);
+      return res.status(data.error.code || 500).json({ error: data.error.message });
+    }
+
     const part = data?.candidates?.[0]?.content?.parts?.[0];
 
     // --- EKSEKUSI LOGIKA ---
@@ -94,7 +98,7 @@ console.log("DEBUG: Menggunakan API Key berakhiran:", process.env.API_KEY.slice(
           tanggal: tgl,
           refId: bRef.key
         });
-        return res.status(200).json({ reply: `✅ Oke! Pembelian ${args.nama} dicatat. Kas berkurang Rp${args.total.toLocaleString()}.` });
+        return res.status(200).json({ reply: `✅ Pembelian ${args.nama} senilai Rp${args.total.toLocaleString()} dicatat.` });
       }
 
       // 2. BARANG KELUAR -> KAS MASUK
@@ -107,7 +111,7 @@ console.log("DEBUG: Menggunakan API Key berakhiran:", process.env.API_KEY.slice(
           tanggal: tgl,
           refId: bRef.key
         });
-        return res.status(200).json({ reply: `🚀 Mantap! Penjualan ${args.nama} dicatat. Kas bertambah Rp${args.total.toLocaleString()}.` });
+        return res.status(200).json({ reply: `🚀 Penjualan ${args.nama} senilai Rp${args.total.toLocaleString()} dicatat.` });
       }
 
       // 3. CEK LAPORAN
@@ -116,16 +120,19 @@ console.log("DEBUG: Menggunakan API Key berakhiran:", process.env.API_KEY.slice(
         const snapshot = await db.ref(path).once("value");
         let total = 0;
         if (snapshot.exists()) {
-          Object.values(snapshot.val()).forEach(val => total += val.jumlah);
+          Object.values(snapshot.val()).forEach(val => {
+            if (val.jumlah) total += val.jumlah;
+          });
         }
         return res.status(200).json({ reply: `Total ${args.tipe === 'masuk' ? 'pemasukan' : 'pengeluaran'} sejauh ini adalah Rp${total.toLocaleString()}.` });
       }
     }
 
-    // Jawab Chat Biasa
-    return res.status(200).json({ reply: part?.text || "Ada lagi yang bisa saya bantu catat?" });
+    // Jawab Chat Biasa jika tidak ada fungsi yang dipanggil
+    return res.status(200).json({ reply: part?.text || "Ada lagi yang bisa saya bantu?" });
 
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    console.error("Internal Error:", err.message);
+    return res.status(500).json({ error: "Terjadi kesalahan pada sistem." });
   }
 }
