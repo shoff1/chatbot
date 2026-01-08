@@ -18,12 +18,7 @@ export default async function handler(req, res) {
     role: "user",
     parts: [
       { 
-        text: `Kamu adalah asisten keuangan peternakan yang sangat teliti. 
-               Tugasmu adalah menggunakan fungsi 'catat_barang_masuk' atau 'catat_barang_keluar' 
-               setiap kali pengguna menyebutkan transaksi beli atau jual barang. 
-               JANGAN menjawab dengan teks biasa jika ada data transaksi. 
-               
-               Prompt pengguna: ${prompt}` 
+        text: `Asisten Keuangan: Catat transaksi atau cek laporan jika diminta. Prompt: ${prompt}` 
       }
     ],
   },
@@ -60,7 +55,7 @@ export default async function handler(req, res) {
               },
               {
                 name: "cek_laporan",
-                description: "Melihat total uang masuk atau keluar dari database.",
+                description: "Lihat total uang masuk atau keluar.",
                 parameters: {
                   type: "object",
                   properties: {
