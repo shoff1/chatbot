@@ -13,9 +13,21 @@ export default async function handler(req, res) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          contents: [{ 
-            parts: [{ text: `Kamu adalah asisten keuangan peternakan. Hari ini tanggal ${new Date().toLocaleDateString('id-ID')}. Prompt: ${prompt}` }] 
-          }],
+          contents: [
+  {
+    role: "user",
+    parts: [
+      { 
+        text: `Kamu adalah asisten keuangan peternakan yang sangat teliti. 
+               Tugasmu adalah menggunakan fungsi 'catat_barang_masuk' atau 'catat_barang_keluar' 
+               setiap kali pengguna menyebutkan transaksi beli atau jual barang. 
+               JANGAN menjawab dengan teks biasa jika ada data transaksi. 
+               
+               Prompt pengguna: ${prompt}` 
+      }
+    ],
+  },
+],
           tools: [{
             function_declarations: [
               {
@@ -64,6 +76,8 @@ export default async function handler(req, res) {
     );
 
     const data = await response.json();
+// Cek di Logs Vercel: Apa yang sebenarnya dipikirkan AI?
+console.log("Gemini Response:", JSON.stringify(data, null, 2));
     const part = data?.candidates?.[0]?.content?.parts?.[0];
 
     // --- EKSEKUSI LOGIKA ---
