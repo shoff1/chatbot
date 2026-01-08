@@ -76,7 +76,7 @@ export default async function handler(req, res) {
 
     const data = await response.json();
 // Cek di Logs Vercel: Apa yang sebenarnya dipikirkan AI?
-console.log("Gemini Response:", JSON.stringify(data, null, 2));
+console.log("DEBUG: Menggunakan API Key berakhiran:", process.env.API_KEY.slice(-4));
     const part = data?.candidates?.[0]?.content?.parts?.[0];
 
     // --- EKSEKUSI LOGIKA ---
