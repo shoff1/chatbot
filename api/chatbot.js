@@ -18,7 +18,7 @@ export default async function handler(req, res) {
         messages: [
           { 
             role: "system", 
-            content: "Kamu adalah asisten keuangan peternakan. Tugasmu menjawab pertanyaan jika ada dan mencatat transaksi barang masuk/keluar dan laporan kas ke database menggunakan tool yang tersedia." 
+            content: "Kamu adalah asisten keuangan Santri Farm. Tugasmu menjawab pertanyaan jika ada dan mencatat transaksi barang masuk/keluar dan laporan kas ke database menggunakan tool yang tersedia, tapi bisa juga diajak ngobrol santai, jawab salam, dan berterima kasih kembali. Jika user berterima kasih, balas dengan ramah. Jika user menyapa, balas dengan semangat." 
           },
           { role: "user", content: prompt }
         ],
@@ -123,8 +123,7 @@ export default async function handler(req, res) {
         return res.status(200).json({ reply: `🚀 Penjualan ${args.nama} senilai Rp${args.total.toLocaleString()} berhasil dicatat ke Firebase.` });
       }
 
-      // 3. CEK LAPORAN
-      // 3. CEK LAPORAN (VERSI PINTAR)
+
 if (name === "cek_laporan") {
   const path = args.tipe === "masuk" ? "kasMasuk" : "kasKeluar";
   const snapshot = await db.ref(path).once("value");
@@ -133,15 +132,12 @@ if (name === "cek_laporan") {
     return res.status(200).json({ reply: `Belum ada data ${args.tipe} di database.` });
   }
 
-  // Ambil rincian transaksi (Nama, Total, Tanggal) dan susutkan agar hemat token
   const rincianData = Object.values(snapshot.val()).map(val => ({
     ket: val.keterangan || "Tanpa keterangan",
     total: val.jumlah,
-    tgl: val.tanggal ? val.tanggal.substring(0, 10) : "2025-01-01" // Ambil YYYY-MM-DD
+    tgl: val.tanggal ? val.tanggal.substring(0, 10) : "2025-01-01" 
   }));
 
-  // Kirim balik data rincian ke Groq sebagai "konteks" tambahan
-  // Kita buat pemanggilan kedua ke Groq agar dia bisa menganalisis data ini
   const secondResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
     headers: {
