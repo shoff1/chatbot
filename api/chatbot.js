@@ -18,7 +18,7 @@ export default async function handler(req, res) {
         messages: [
           { 
             role: "system", 
-            content: "Kamu adalah asisten keuangan peternakan. Tugasmu mencatat transaksi barang masuk/keluar dan laporan kas ke database menggunakan tool yang tersedia." 
+            content: "Kamu adalah asisten keuangan peternakan. Tugasmu menjawab pertanyaan jika ada dan mencatat transaksi barang masuk/keluar dan laporan kas ke database menggunakan tool yang tersedia." 
           },
           { role: "user", content: prompt }
         ],
@@ -124,17 +124,45 @@ export default async function handler(req, res) {
       }
 
       // 3. CEK LAPORAN
-      if (name === "cek_laporan") {
-        const path = args.tipe === "masuk" ? "kasMasuk" : "kasKeluar";
-        const snapshot = await db.ref(path).once("value");
-        let total = 0;
-        if (snapshot.exists()) {
-          Object.values(snapshot.val()).forEach(val => {
-            if (val.jumlah) total += val.jumlah;
-          });
-        }
-        return res.status(200).json({ reply: `Total ${args.tipe === 'masuk' ? 'pemasukan' : 'pengeluaran'} sejauh ini adalah Rp${total.toLocaleString()}.` });
-      }
+      // 3. CEK LAPORAN (VERSI PINTAR)
+if (name === "cek_laporan") {
+  const path = args.tipe === "masuk" ? "kasMasuk" : "kasKeluar";
+  const snapshot = await db.ref(path).once("value");
+  
+  if (!snapshot.exists()) {
+    return res.status(200).json({ reply: `Belum ada data ${args.tipe} di database.` });
+  }
+
+  // Ambil rincian transaksi (Nama, Total, Tanggal) dan susutkan agar hemat token
+  const rincianData = Object.values(snapshot.val()).map(val => ({
+    ket: val.keterangan || "Tanpa keterangan",
+    total: val.jumlah,
+    tgl: val.tanggal ? val.tanggal.substring(0, 10) : "2025-01-01" // Ambil YYYY-MM-DD
+  }));
+
+  // Kirim balik data rincian ke Groq sebagai "konteks" tambahan
+  // Kita buat pemanggilan kedua ke Groq agar dia bisa menganalisis data ini
+  const secondResponse = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${process.env.API_KEY}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: "llama-3.3-70b-versatile",
+      messages: [
+        { 
+          role: "system", 
+          content: `Hari ini adalah ${new Date().toLocaleDateString('id-ID')}. Berikut adalah data rincian kas ${args.tipe}: ${JSON.stringify(rincianData)}. Jawablah pertanyaan user berdasarkan data ini. Jika ditanya bulan tertentu, hitunglah hanya untuk bulan tersebut.` 
+        },
+        { role: "user", content: prompt }
+      ]
+    })
+  });
+
+  const secondData = await secondResponse.json();
+  return res.status(200).json({ reply: secondData.choices[0].message.content });
+}
     }
 
     // Jawab Chat Biasa
